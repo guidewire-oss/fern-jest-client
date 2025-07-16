@@ -1,0 +1,33 @@
+# Source files
+src/
+tests/
+
+# Config files
+jest.config.js
+tsconfig.json
+.eslintrc*
+.prettierrc*
+
+# Development files
+Makefile
+*.log
+.DS_Store
+.env
+.env.*
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Build artifacts
+*.tsbuildinfo

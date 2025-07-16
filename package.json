@@ -1,6 +1,6 @@
 {
   "name": "fern-jest-client",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "description": "Jest test reporter client for Fern platform - captures and sends test execution data to fern-reporter",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -48,5 +48,13 @@
   },
   "engines": {
     "node": ">=16.0.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/guidewire-oss/fern-jest-client.git"
+  },
+  "bugs": {
+    "url": "https://github.com/guidewire-oss/fern-jest-client/issues"
+  },
+  "homepage": "https://github.com/guidewire-oss/fern-jest-client"
 }

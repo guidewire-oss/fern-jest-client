@@ -21,7 +21,7 @@ export class FernApiClient {
       timeout: options.timeout || DEFAULT_CONFIG.TIMEOUT,
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'fern-jest-client/1.0.0',
+        'User-Agent': 'fern-jest-client/0.2.0',
         ...options.headers
       }
     });
@@ -45,10 +45,13 @@ export class FernApiClient {
 
       if (response.status >= 200 && response.status < 300) {
         console.log(`Successfully reported test run to Fern (${response.status})`);
-        console.log(`Project: ${createInput.project_id}`);
-        console.log(`Run ID: ${createInput.run_id}`);
-        console.log(`Branch: ${createInput.branch}`);
-        console.log(`Total tags: ${createInput.tags?.length || 0}`);
+        console.log(`Project: ${createInput.test_project_name} (${createInput.test_project_id})`);
+        console.log(`Test Seed: ${createInput.test_seed}`);
+        console.log(`Branch: ${createInput.git_branch}`);
+        console.log(`Suites: ${createInput.suite_runs.length}`);
+        if (response.data && response.data.id) {
+          console.log(`Fern Test Run ID: ${response.data.id}`);
+        }
       } else {
         console.warn(`Unexpected response status from Fern API: ${response.status}`);
       }

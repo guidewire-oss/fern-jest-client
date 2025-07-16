@@ -7,7 +7,7 @@ export const DEFAULT_CONFIG = {
   TIMEOUT: 30000,
   RETRIES: 3,
   RETRY_DELAY: 1000,
-  API_ENDPOINT: '/api/v1/test-runs',
+  API_ENDPOINT: '/api/reports/testrun',
 } as const;
 
 export const ENV_VARS = {

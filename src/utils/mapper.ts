@@ -21,25 +21,37 @@ import {
 export function mapJestResultsToTestRun(
   results: JestAggregatedResult,
   projectId: string,
+  projectName: string,
   gitInfo: GitInfo,
   ciInfo: CIInfo
 ): TestRun {
   const startTime = new Date(results.startTime).toISOString();
   const endTime = new Date().toISOString(); // Jest doesn't provide end time, use current time
   
-  const suiteRuns: SuiteRun[] = results.testResults.map(suite => 
-    mapJestSuiteToSuiteRun(suite)
+  // Use nanosecond precision timestamp as test seed for uniqueness
+  // process.hrtime.bigint() returns nanoseconds since an arbitrary time
+  // We'll use current timestamp in milliseconds * 1000000 + nanosecond component
+  const hrTime = process.hrtime.bigint();
+  const nanoTime = Number(hrTime % 1000000n); // Get last 6 digits of nanoseconds
+  const testSeed = Date.now() * 1000000 + nanoTime;
+  const testRunId = testSeed; // Use same value for consistency
+  
+  const suiteRuns: SuiteRun[] = results.testResults.map((suite, index) => 
+    mapJestSuiteToSuiteRun(suite, testRunId, index + 1)
   );
 
   return {
+    id: testRunId,
+    test_project_name: projectName,
     test_project_id: projectId,
-    test_seed: Math.floor(Math.random() * 1000000), // Jest doesn't have seed concept
+    test_seed: testSeed,
     start_time: startTime,
     end_time: endTime,
     git_branch: gitInfo.branch,
     git_sha: gitInfo.sha,
     build_trigger_actor: ciInfo.actor,
     build_url: ciInfo.buildUrl,
+    client_type: 'fern-jest-client',
     suite_runs: suiteRuns
   };
 }
@@ -47,16 +59,18 @@ export function mapJestResultsToTestRun(
 /**
  * Convert Jest test suite result to Fern SuiteRun
  */
-export function mapJestSuiteToSuiteRun(suite: JestTestSuiteResult): SuiteRun {
+export function mapJestSuiteToSuiteRun(suite: JestTestSuiteResult, testRunId: number, suiteId: number): SuiteRun {
   const suiteName = extractSuiteName(suite.testFilePath);
   const startTime = suite.startTime ? new Date(suite.startTime).toISOString() : new Date().toISOString();
   const endTime = suite.endTime ? new Date(suite.endTime).toISOString() : new Date().toISOString();
   
-  const specRuns: SpecRun[] = suite.testResults.map(test => 
-    mapJestTestToSpecRun(test, suite.startTime || Date.now())
+  const specRuns: SpecRun[] = suite.testResults.map((test, index) => 
+    mapJestTestToSpecRun(test, suite.startTime || Date.now(), suiteId, index + 1)
   );
 
   return {
+    id: suiteId,
+    test_run_id: testRunId,
     suite_name: suiteName,
     start_time: startTime,
     end_time: endTime,
@@ -67,7 +81,7 @@ export function mapJestSuiteToSuiteRun(suite: JestTestSuiteResult): SuiteRun {
 /**
  * Convert Jest test result to Fern SpecRun
  */
-export function mapJestTestToSpecRun(test: JestTestResult, suiteStartTime: number): SpecRun {
+export function mapJestTestToSpecRun(test: JestTestResult, suiteStartTime: number, suiteId: number, specId: number): SpecRun {
   const specDescription = buildSpecDescription(test);
   const status = mapJestStatusToFernStatus(test.status);
   const message = extractFailureMessage(test);
@@ -79,6 +93,8 @@ export function mapJestTestToSpecRun(test: JestTestResult, suiteStartTime: numbe
   const endTime = new Date(suiteStartTime + testDuration).toISOString();
 
   return {
+    id: specId,
+    suite_id: suiteId,
     spec_description: specDescription,
     status: status,
     message: message,
@@ -150,6 +166,7 @@ function extractFailureMessage(test: JestTestResult): string {
  */
 function extractTagsFromTest(test: JestTestResult): Tag[] {
   const tags: Tag[] = [];
+  let tagId = 1;
 
   // Extract tags from test title (e.g., "should work [unit]" or "@unit should work")
   const titleTags = extractTagsFromString(test.title);
@@ -163,13 +180,18 @@ function extractTagsFromTest(test: JestTestResult): Tag[] {
 
   // Add default tag if no tags found
   if (tags.length === 0) {
-    tags.push({ name: 'default' });
+    tags.push({ id: tagId++, name: 'default' });
   }
 
-  // Remove duplicates
-  const uniqueTags = tags.filter((tag, index, self) => 
-    index === self.findIndex(t => t.name === tag.name)
-  );
+  // Remove duplicates and assign IDs
+  const uniqueTagNames = new Set<string>();
+  const uniqueTags: Tag[] = [];
+  tags.forEach(tag => {
+    if (!uniqueTagNames.has(tag.name)) {
+      uniqueTagNames.add(tag.name);
+      uniqueTags.push({ id: tagId++, name: tag.name });
+    }
+  });
 
   return uniqueTags;
 }
@@ -186,7 +208,7 @@ function extractTagsFromString(str: string): Tag[] {
   while ((bracketMatch = bracketPattern.exec(str)) !== null) {
     const tagNames = bracketMatch[1].split(',').map(t => t.trim());
     tagNames.forEach(name => {
-      if (name) tags.push({ name });
+      if (name) tags.push({ id: 0, name }); // ID will be assigned later
     });
   }
   
@@ -194,14 +216,14 @@ function extractTagsFromString(str: string): Tag[] {
   const atPattern = /@([a-zA-Z0-9_-]+)/g;
   let atMatch;
   while ((atMatch = atPattern.exec(str)) !== null) {
-    tags.push({ name: atMatch[1] });
+    tags.push({ id: 0, name: atMatch[1] });
   }
   
   // Pattern 3: #tag or #tag1 #tag2
   const hashPattern = /#([a-zA-Z0-9_-]+)/g;
   let hashMatch;
   while ((hashMatch = hashPattern.exec(str)) !== null) {
-    tags.push({ name: hashMatch[1] });
+    tags.push({ id: 0, name: hashMatch[1] });
   }
 
   return tags;
@@ -209,36 +231,10 @@ function extractTagsFromString(str: string): Tag[] {
 
 /**
  * Convert TestRun to CreateTestRunInput for API submission
+ * Since TestRun now has all required fields, we just return it as-is
  */
 export function mapTestRunToCreateInput(testRun: TestRun): CreateTestRunInput {
-  // Generate unique run ID
-  const runId = generateRunId();
-  
-  // Extract unique tags from all specs
-  const allTags = new Set<string>();
-  testRun.suite_runs.forEach(suite => {
-    suite.spec_runs.forEach(spec => {
-      spec.tags.forEach(tag => allTags.add(tag.name));
-    });
-  });
-
-  return {
-    project_id: testRun.test_project_id,
-    run_id: runId,
-    branch: testRun.git_branch,
-    commit_sha: testRun.git_sha,
-    environment: process.env.NODE_ENV || 'test',
-    metadata: {
-      test_seed: testRun.test_seed,
-      start_time: testRun.start_time,
-      end_time: testRun.end_time,
-      build_trigger_actor: testRun.build_trigger_actor,
-      build_url: testRun.build_url,
-      suite_count: testRun.suite_runs.length,
-      test_count: testRun.suite_runs.reduce((sum, suite) => sum + suite.spec_runs.length, 0)
-    },
-    tags: Array.from(allTags)
-  };
+  return testRun;
 }
 
 /**

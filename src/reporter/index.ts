@@ -14,6 +14,7 @@ import { getEnvVar, ENV_VARS } from '../config';
 export class FernReporter extends BaseReporter {
   private client!: FernApiClient;
   private projectId: string;
+  private projectName: string;
   private enabled: boolean;
 
   constructor(globalConfig: Config.GlobalConfig, options: FernReporterConfig) {
@@ -21,6 +22,7 @@ export class FernReporter extends BaseReporter {
     
     // Configuration with environment variable fallbacks
     this.projectId = options.projectId || getEnvVar(ENV_VARS.FERN_PROJECT_ID) || 'unknown-project';
+    this.projectName = options.projectName || getEnvVar('FERN_PROJECT_NAME') || this.projectId;
     this.enabled = options.enabled !== false && getEnvVar(ENV_VARS.FERN_ENABLED) !== 'false';
     
     if (!this.enabled) {
@@ -58,7 +60,7 @@ export class FernReporter extends BaseReporter {
       ]);
 
       // Convert Jest results to Fern format
-      const testRun = mapJestResultsToTestRun(results, this.projectId, gitInfo, ciInfo);
+      const testRun = mapJestResultsToTestRun(results, this.projectId, this.projectName, gitInfo, ciInfo);
       
       // Log summary
       console.log(generateTestSummary(testRun));

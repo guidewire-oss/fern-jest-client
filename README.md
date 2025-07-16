@@ -43,7 +43,8 @@ module.exports = {
   reporters: [
     'default',
     ['fern-jest-client', {
-      projectId: 'my-project',
+      projectId: 'your-project-uuid',     // UUID from fern-platform
+      projectName: 'my-project',          // Optional: human-readable name
       baseUrl: 'http://localhost:8080'
     }]
   ]
@@ -77,8 +78,9 @@ module.exports = {
   reporters: [
     'default',
     ['fern-jest-client', {
-      projectId: 'my-project',           // Required: Your project identifier
-      baseUrl: 'http://localhost:8080', // Optional: Fern reporter URL
+      projectId: 'your-project-uuid',     // Required: Your project UUID
+      projectName: 'my-project',          // Optional: Project name (defaults to projectId)
+      baseUrl: 'http://localhost:8080',   // Optional: Fern reporter URL
       timeout: 30000,                   // Optional: Request timeout (ms)
       enabled: true                     // Optional: Enable/disable reporting
     }]
@@ -90,7 +92,8 @@ module.exports = {
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `FERN_PROJECT_ID` | Project identifier | Required |
+| `FERN_PROJECT_ID` | Project UUID from fern-platform | Required |
+| `FERN_PROJECT_NAME` | Human-readable project name | Uses `FERN_PROJECT_ID` |
 | `FERN_REPORTER_BASE_URL` | Fern reporter service URL | `http://localhost:8080` |
 | `FERN_ENABLED` | Enable/disable reporting | `true` |
 | `FERN_DEBUG` | Enable debug logging | `false` |

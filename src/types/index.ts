@@ -4,11 +4,13 @@
  */
 
 export interface Tag {
+  id: number;
   name: string;
-  color?: string;
 }
 
 export interface SpecRun {
+  id: number;
+  suite_id: number;
   spec_description: string;
   status: string;
   message: string;
@@ -18,6 +20,8 @@ export interface SpecRun {
 }
 
 export interface SuiteRun {
+  id: number;
+  test_run_id: number;
   suite_name: string;
   start_time: string;
   end_time: string;
@@ -25,6 +29,8 @@ export interface SuiteRun {
 }
 
 export interface TestRun {
+  id: number;
+  test_project_name: string;
   test_project_id: string;
   test_seed: number;
   start_time: string;
@@ -33,18 +39,13 @@ export interface TestRun {
   git_sha: string;
   build_trigger_actor: string;
   build_url: string;
+  client_type: string;
   suite_runs: SuiteRun[];
 }
 
 // API input structure that matches fern-platform expectations
-export interface CreateTestRunInput {
-  project_id: string;
-  run_id: string;
-  branch: string;
-  commit_sha: string;
-  environment?: string;
-  metadata?: Record<string, any>;
-  tags?: string[];
+export interface CreateTestRunInput extends TestRun {
+  // TestRun already has all required fields
 }
 
 export interface FernClientOptions {
@@ -57,6 +58,7 @@ export interface FernClientOptions {
 
 export interface FernReporterConfig {
   projectId: string;
+  projectName?: string;
   baseUrl?: string;
   timeout?: number;
   enabled?: boolean;
